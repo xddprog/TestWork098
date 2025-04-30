@@ -1,1 +1,2 @@
 from backend.core.repositories.user_repository import UserRepository
+from backend.core.repositories.task_repository import TaskRepository

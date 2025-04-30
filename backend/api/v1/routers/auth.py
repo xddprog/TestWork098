@@ -3,6 +3,7 @@ from dishka import FromDishka
 from dishka.integrations.fastapi import inject
 from fastapi import APIRouter, Depends, Request, Response
 from fastapi.responses import JSONResponse
+from starlette import status
 
 from backend.core import services
 from backend.core.dto.auth_dto import LoginForm, TokensModel, RegisterForm
@@ -49,7 +50,7 @@ async def refresh_token(
     )
     
 
-@router.post("/register", status_code=201)
+@router.post("/register")
 @inject
 async def register_user(
     form: RegisterForm,
@@ -57,5 +58,6 @@ async def register_user(
 ) -> BaseUserModel:
     await auth_service.register_user(form)
     return JSONResponse(
-        content={"message": "User successfully registered. Please login."}
+        content={"message": "User successfully registered. Please login."},
+        status_code=status.HTTP_201_CREATED
     )

@@ -3,7 +3,6 @@ from datetime import datetime, timedelta, timezone
 import bcrypt
 from fastapi.security import HTTPAuthorizationCredentials
 from jwt import InvalidTokenError, encode, decode
-from passlib.context import CryptContext
 
 from backend.core.dto.auth_dto import LoginForm, RegisterForm
 from backend.core.dto.user_dto import BaseUserModel
@@ -16,7 +15,6 @@ from backend.infrastructure.errors.auth_errors import InvalidLoginData, InvalidT
 class AuthService:
     def __init__(self, repository: UserRepository) -> None:
         self.repository = repository
-        self.context = CryptContext(schemes=["bcrypt"], deprecated="auto")
     
     async def get_user_by_email(self, email: str) -> User | None:
         return await self.repository.get_by_attribute("email", email, one=True)
@@ -44,7 +42,6 @@ class AuthService:
 
     async def create_access_token(self, user_id: int) -> str:
         expire = datetime.now(timezone.utc) + timedelta(minutes=JWT_CONFIG.JWT_ACCESS_TOKEN_TIME)
-        print(expire)
         data = {"exp": expire, "sub": str(user_id)}
         return encode(
             data,
@@ -72,7 +69,7 @@ class AuthService:
                 JWT_CONFIG.JWT_SECRET,
                 algorithms=[JWT_CONFIG.JWT_ALGORITHM],
             )
-            print(datetime.fromtimestamp(payload['exp']))
+
             user_id = int(payload.get("sub"))
             user = await self.repository.get_item(user_id)
             if not user_id or not user:
@@ -92,7 +89,7 @@ class AuthService:
         if user:
             raise UserAlreadyRegistered
 
-        form.password = self.hash_password(form.password)
+        form.password = await self.hash_password(form.password)
         new_user = await self.repository.add_item(**form.model_dump())
         return BaseUserModel.model_validate(new_user, from_attributes=True)
     

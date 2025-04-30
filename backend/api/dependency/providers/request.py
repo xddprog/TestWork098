@@ -25,13 +25,13 @@ class RequestProvider(Provider):
             await session.close()
 
     @provide(scope=Scope.REQUEST)
-    def get_auth_service(self, session: AsyncSession) -> services.AuthService:
+    async def get_auth_service(self, session: AsyncSession) -> services.AuthService:
         return services.AuthService(repository=repositories.UserRepository(session=session))
     
     @provide(scope=Scope.REQUEST)
-    def get_user_service(self, session: AsyncSession) -> services.UserService:    
-        return services.UserService(repository=repositories.UserRepository(session=session))
-    
+    async def get_task_service(self, session: AsyncSession) -> services.TaskService:
+        return services.TaskService(repository=repositories.TaskRepository(session=session))
+
     @provide(scope=Scope.REQUEST)
     async def get_current_user(
         self, 

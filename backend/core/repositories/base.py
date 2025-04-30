@@ -4,7 +4,7 @@ from backend.infrastructure.interfaces.repository import RepositoryInterface
 
 
 class SqlAlchemyRepository[ModelType](RepositoryInterface[ModelType]):
-    def __init__(self, session: AsyncSession, model: ModelType):
+    def __init__(self, session: AsyncSession, model: type[ModelType]):
         self.session = session
         self.model = model
 
@@ -42,7 +42,7 @@ class SqlAlchemyRepository[ModelType](RepositoryInterface[ModelType]):
         )
         item: Result = await self.session.execute(query)
         await self.session.commit()
-        item = item.scalars().all()[0]
+        item = item.scalar_one_or_none()
         await self.session.refresh(item)
         return item
 
