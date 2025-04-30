@@ -1,5 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
+import bcrypt
+from fastapi.security import HTTPAuthorizationCredentials
 from jwt import InvalidTokenError, encode, decode
 from passlib.context import CryptContext
 
@@ -8,75 +10,79 @@ from backend.core.dto.user_dto import BaseUserModel
 from backend.core.repositories.user_repository import UserRepository
 from backend.infrastructure.config.auth_configs import JWT_CONFIG
 from backend.infrastructure.database.models.user import User
-from backend.infrastructure.errors.auth_errors import InvalidLoginData, InvalidToken, UserAlreadyNotRegister, UserAlreadyRegister
+from backend.infrastructure.errors.auth_errors import InvalidLoginData, InvalidToken, UserNotRegistered, UserAlreadyRegistered
 
 
 class AuthService:
     def __init__(self, repository: UserRepository) -> None:
         self.repository = repository
         self.context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
-    async def get_user_by_username(self, username: str) -> User | None:
-        user = await self.repository.get_by_attribute("username", username)
-        return None if not user else user[0]
     
     async def get_user_by_email(self, email: str) -> User | None:
-        user = await self.repository.get_by_attribute("email", email)
-        return None if not user else user[0]
+        return await self.repository.get_by_attribute("email", email, one=True)
     
-    async def verify_password(self, password: str, hashed_password: str) -> bool:
-        return self.context.verify(password, hashed_password)
-
-    async def authenticate_user(self, form: LoginForm | RegisterForm, is_external: bool = False) -> User:
-        if is_external:
-            user = await self.get_user_by_username(form.username)
-        else:
-            user = await self.get_user_by_email(form.email)
-        if not user and is_external:
+    async def verify_password(self, plain_password: str, hashed_password: str) -> bool:
+        password_bytes = plain_password.encode("utf-8")
+        hashed_bytes = hashed_password.encode("utf-8")
+        try:
+            return bcrypt.checkpw(password_bytes, hashed_bytes)
+        except (ValueError, TypeError):
             return False
-        if not user:
-            raise UserAlreadyNotRegister
-        if not is_external and not await self.verify_password(form.password, user.password):
-            raise InvalidLoginData
-        return BaseUserModel.model_validate(user, from_attributes=True)
 
-    async def create_access_token(self, username: str) -> str:
-        expire = datetime.now() + timedelta(minutes=JWT_CONFIG.JWT_ACCESS_TOKEN_TIME)
-        data = {"exp": expire, "sub": username}
-        token = encode(
+    async def hash_password(self, plain_password: str) -> str:
+        password_bytes = plain_password.encode("utf-8")
+        hashed_bytes = bcrypt.hashpw(password_bytes, bcrypt.gensalt())
+        return hashed_bytes.decode("utf-8")
+
+    async def authenticate_user(self, form: LoginForm | RegisterForm) -> User:
+        user = await self.get_user_by_email(form.email)
+        if not user:
+            raise UserNotRegistered
+        if not await self.verify_password(form.password, user.password):
+            raise InvalidLoginData
+        return user
+
+    async def create_access_token(self, user_id: int) -> str:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=JWT_CONFIG.JWT_ACCESS_TOKEN_TIME)
+        print(expire)
+        data = {"exp": expire, "sub": str(user_id)}
+        return encode(
             data,
             JWT_CONFIG.JWT_SECRET, 
             algorithm=JWT_CONFIG.JWT_ALGORITHM
         )
-        return token
     
-    async def create_refresh_token(self, username: str ):
-        expire = datetime.now() + timedelta(days=JWT_CONFIG.JWT_REFRESH_TOKEN_TIME)
-        data = {"exp": expire, "sub": username}
+    async def create_refresh_token(self, user_id: int):
+        expire = datetime.now(timezone.utc) + timedelta(days=JWT_CONFIG.JWT_REFRESH_TOKEN_TIME)
+        data = {"exp": expire, "sub": str(user_id)}
         return encode(
             data, 
             JWT_CONFIG.JWT_SECRET, 
             algorithm=JWT_CONFIG.JWT_ALGORITHM
         )
 
-    async def verify_token(self, token: str) -> str:
+    async def verify_token(self, token: str, is_refresh: bool = False) -> BaseUserModel:
         if not token:
             raise InvalidToken
         try:
+            if not is_refresh:
+                _, token = token.split()
             payload = decode(
                 token,
                 JWT_CONFIG.JWT_SECRET,
                 algorithms=[JWT_CONFIG.JWT_ALGORITHM],
             )
-            username = payload.get("sub")
-            if not username or not await self.get_user_by_username(username):
+            print(datetime.fromtimestamp(payload['exp']))
+            user_id = int(payload.get("sub"))
+            user = await self.repository.get_item(user_id)
+            if not user_id or not user:
                 raise InvalidToken
-            return username
+            return BaseUserModel.model_validate(user, from_attributes=True)
         except (InvalidTokenError, AttributeError) as e:
             raise InvalidToken
 
-    async def check_user_exist(self, username: str) -> BaseUserModel:
-        user = await self.get_user_by_username(username)
+    async def check_user_exist(self, email: str) -> BaseUserModel:
+        user = await self.get_user_by_email(email)
         if user is None:
             raise InvalidToken
         return BaseUserModel.model_validate(user, from_attributes=True)
@@ -84,16 +90,14 @@ class AuthService:
     async def register_user(self, form: RegisterForm) -> BaseUserModel:
         user = await self.get_user_by_email(form.email)
         if user:
-            raise UserAlreadyRegister
+            raise UserAlreadyRegistered
 
-        form.password = self.context.hash(form.password)
+        form.password = self.hash_password(form.password)
         new_user = await self.repository.add_item(**form.model_dump())
-        access_token = await self.create_access_token(new_user.username)
-        refresh_token = await self.create_refresh_token(new_user.username)
-        return BaseUserModel.model_validate(new_user, from_attributes=True), access_token, refresh_token
+        return BaseUserModel.model_validate(new_user, from_attributes=True)
     
     async def login_user(self, form: LoginForm) -> BaseUserModel:
         user = await self.authenticate_user(form)
-        access_token = await self.create_access_token(user.username)
-        refresh_token = await self.create_refresh_token(user.username)
-        return user, access_token, refresh_token
+        access_token = await self.create_access_token(user.id)
+        refresh_token = await self.create_refresh_token(user.id)
+        return BaseUserModel.model_validate(user, from_attributes=True), access_token, refresh_token

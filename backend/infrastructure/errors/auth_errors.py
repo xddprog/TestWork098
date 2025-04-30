@@ -2,11 +2,11 @@ from fastapi import HTTPException
 from starlette import status
 
 
-class UserAlreadyRegister(HTTPException):
+class UserAlreadyRegistered(HTTPException):
     def __init__(self):
         super().__init__(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Вы уже зарегистрированы!",
+            detail="User is already registered",
         )
 
 
@@ -14,7 +14,7 @@ class InvalidToken(HTTPException):
     def __init__(self):
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Не удалось подтвердить учетные данные",
+            detail="Could not validate credentials",
         )
 
 
@@ -22,21 +22,21 @@ class InvalidLoginData(HTTPException):
     def __init__(self):
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Проверьте введеные данные!",
+            detail="Incorrect username or password",
         )
 
 
-class UserAlreadyNotRegister(HTTPException):
+class UserNotRegistered(HTTPException):
     def __init__(self):
         super().__init__(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Пользователь с такой почтой не найден!",
+            detail="User with this email not found",
         )
 
 
-class CodeIsIncorrectOrExpired(HTTPException):
+class CodeIncorrectOrExpired(HTTPException):
     def __init__(self):
         super().__init__(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Код не верен или устарел!",
+            detail="Verification code is incorrect or expired",
         )

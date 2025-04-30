@@ -16,5 +16,6 @@ class DatabaseConnection:
     @classmethod
     async def create_tables(cls):
         async with cls.__engine.begin() as conn:
-            await conn.run_sync(Base.metadata.drop_all)
+            if DB_CONFIG.DROP:
+                await conn.run_sync(Base.metadata.drop_all)
             await conn.run_sync(Base.metadata.create_all)

@@ -3,5 +3,5 @@ from pydantic import BaseModel
 
 class BaseUserModel(BaseModel):
     id: int
-    username: str
+    name: str
     email: str | None = None

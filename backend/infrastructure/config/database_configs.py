@@ -12,6 +12,7 @@ class DatabaseConfig(BaseModel):
     DB_PASS: str
     DB_HOST: str
     DB_PORT: str
+    DROP: bool
 
     def get_postgres_url(self, is_async: bool = True):
         if is_async:
@@ -20,5 +21,5 @@ class DatabaseConfig(BaseModel):
 
 
 DB_CONFIG = DatabaseConfig(
-    **{field: env.str(field.upper()) for field in DatabaseConfig.model_fields}
+    **{field: env(field.upper()) for field in DatabaseConfig.model_fields}
 )
