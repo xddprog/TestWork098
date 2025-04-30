@@ -23,3 +23,4 @@ class DatabaseConfig(BaseModel):
 DB_CONFIG = DatabaseConfig(
     **{field: env(field.upper()) for field in DatabaseConfig.model_fields}
 )
+print(DB_CONFIG.get_postgres_url())

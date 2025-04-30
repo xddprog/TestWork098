@@ -1,7 +1,6 @@
 from environs import Env
 from pydantic import BaseModel
 
-from backend.infrastructure.config.database_configs import DatabaseConfig
 
 
 env = Env()

@@ -17,6 +17,7 @@ async def auth_headers(async_client):
     token = login_resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
+
 @pytest.mark.asyncio
 async def test_create_task_valid(async_client, auth_headers):
     response = await async_client.post("/tasks", json={
@@ -31,6 +32,7 @@ async def test_create_task_valid(async_client, auth_headers):
     assert data["priority"] == 10
     assert data["status"] in ["pending", "todo"]
 
+
 @pytest.mark.asyncio
 async def test_create_task_invalid_priority(async_client, auth_headers):
     response = await async_client.post("/tasks", json={
@@ -40,6 +42,7 @@ async def test_create_task_invalid_priority(async_client, auth_headers):
         "priority": "high"
     }, headers=auth_headers)
     assert response.status_code == 422
+
 
 @pytest.mark.asyncio
 async def test_get_tasks_with_filters(async_client, auth_headers):
@@ -81,6 +84,7 @@ async def test_get_tasks_with_date_from(async_client, auth_headers):
         created_at = task["created_at"]
         assert created_at >= date_from
 
+
 @pytest.mark.asyncio
 async def test_get_tasks_with_date_to(async_client, auth_headers):
     await async_client.post("/tasks", json={
@@ -99,7 +103,6 @@ async def test_get_tasks_with_date_to(async_client, auth_headers):
         "priority": 2
     }, headers=auth_headers)
 
-    # Устанавливаем дату окончания как текущую минус 0.5 секунды
     date_to = (datetime.now() - timedelta(seconds=0.5)).isoformat()
 
     response = await async_client.get("/tasks", params={"date_to": date_to}, headers=auth_headers)
@@ -108,6 +111,7 @@ async def test_get_tasks_with_date_to(async_client, auth_headers):
     for task in tasks:
         created_at = task["created_at"]
         assert created_at <= date_to
+
 
 @pytest.mark.asyncio
 async def test_search_tasks(async_client, auth_headers):
@@ -122,6 +126,7 @@ async def test_search_tasks(async_client, auth_headers):
     assert response.status_code == 200
     results = response.json()
     assert any("magicword" in task["description"] for task in results)
+
 
 @pytest.mark.asyncio
 async def test_create_task_without_token(async_client):

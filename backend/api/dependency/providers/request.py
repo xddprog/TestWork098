@@ -1,8 +1,8 @@
-from typing import Annotated, AsyncIterable
-from dishka import FromDishka, Provider, Scope, provide
+from typing import AsyncIterable
+from dishka import Provider, Scope, provide
 from dishka.integrations.fastapi import inject
 from fastapi import Depends, Request
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+from fastapi.security import HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.core import repositories, services
